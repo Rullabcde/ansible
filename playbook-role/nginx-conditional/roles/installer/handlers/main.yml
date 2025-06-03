@@ -1,0 +1,6 @@
+---
+- name: Restart Web Server
+  service:
+    name: "{{ ansible_os_family == 'Debian' | ternary(debian_service, redhat_service) }}"
+    state: started
+    enabled: yes

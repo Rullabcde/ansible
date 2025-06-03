@@ -1,0 +1,9 @@
+---
+- name: Update & Upgrade
+  hosts: webservers
+  become: yes
+  tasks:
+  - name: Update 
+    apt:
+      update_cache: yes
+      upgrade: dist

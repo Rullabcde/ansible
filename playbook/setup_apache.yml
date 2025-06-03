@@ -1,0 +1,33 @@
+---
+- name: Deploy Web Static
+  hosts: webservers
+  become: yes
+  tasks:
+  - name: Install Apache
+    apt:
+      name: apache2
+      state: present
+      update_cache: yes
+
+  - name: Start Apache
+    service:
+      name: apache2
+      state: started
+      enabled: yes
+
+  - name: Buat Directory Web
+    file:
+      path: /var/www/html/myweb
+      state: directory
+      mode: '0755'
+
+  - name: Salin Index
+    copy:
+      content: |
+        <html>
+        <head><title>Halo Ansible</title></head>
+        <body><h1>Ini website statis dari Ansible</h1></body>
+        </html>
+      dest: /var/www/html/myweb/index.html
+      group: www-data
+      owner: www-data

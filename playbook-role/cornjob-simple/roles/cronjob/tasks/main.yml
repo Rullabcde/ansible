@@ -1,0 +1,7 @@
+- name: Cronjob Log Uptime
+  ansible.builtin.cron:
+    name: "Log uptime"
+    minute: "*/5"
+    user: root
+    job: "uptime >> /var/log/uptime.log"
+    state: present

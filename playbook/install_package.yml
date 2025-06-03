@@ -1,0 +1,16 @@
+---
+- name: Install Packages Loop
+  hosts: webservers
+  become: yes
+  vars:
+    packages:
+      - curl
+      - git
+      - unzip
+  tasks:
+  - name: Install Packages
+    apt:
+      name: "{{item}}"
+      state: present
+      update_cache: yes
+    loop: "{{packages}}"

@@ -1,0 +1,24 @@
+---
+- name: setup webserver
+  hosts: webservers
+  become: yes
+
+  tasks:
+  - name: Install Nginx
+    apt:
+      name: nginx
+      state: present
+
+  - name: Start and Enable Nginx
+    service:
+      name: nginx
+      state: started
+      enabled: yes
+
+  - name: Create Simple Index
+    copy:
+      content: "<h1>PLAYBOOK</h1>"
+      dest: /var/www/html/index.html
+      owner: www-data
+      group: www-data
+      mode: '0644'

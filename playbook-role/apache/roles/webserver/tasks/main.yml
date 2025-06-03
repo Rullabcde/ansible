@@ -1,0 +1,23 @@
+- name: Update System
+  apt:
+    update_cache: yes
+    upgrade: dist
+
+- name: Install Apache
+  apt:
+    name: apache2
+    state: present
+
+- name: Start Apache
+  service:
+    name: apache2
+    state: started
+    enabled: yes
+
+- name: Salin Index
+  copy:
+    src: index.html
+    dest: /var/www/html/index.html
+    mode: '0644'
+    owner: www-data
+    group: www-data

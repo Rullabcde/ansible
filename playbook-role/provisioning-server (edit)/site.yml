@@ -1,0 +1,9 @@
+---
+- name: Provisioning Server
+  hosts: test
+  become: yes 
+
+  roles:
+    - user_setup
+    - firewall
+    - webserver

@@ -1,0 +1,35 @@
+---
+- name: Setup User
+  hosts: webservers
+  become: yes
+  vars:
+  - user: "devops"
+
+  tasks:
+  - name: Add User
+    user:
+      name: "{{ user }}"
+      shell: /bin/bash
+      state: present
+
+  - name: Add User to Sudo
+    user:
+      name: "{{ user }}"
+      group: sudo
+      append: yes
+
+  - name: Create .ssh Directory
+    file:
+      path: "/home/{{user}}/.ssh"
+      state: directory
+      group: "{{user}}"
+      owner: "{{user}}"
+      mode: "0700"
+
+  - name: Add authorized_keys
+    copy:
+      dest: "/home/{{ user }}/.ssh/authorized_keys"
+      content: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCy... user@ansible"
+      owner: "{{ user }}"
+      group: "{{ user }}"
+      mode: '0600'

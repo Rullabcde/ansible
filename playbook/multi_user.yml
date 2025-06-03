@@ -1,0 +1,38 @@
+---
+- name: Multi User
+  hosts: webservers
+  become: yes
+  vars:
+    users:
+    - alice
+    - bob
+    - charlie
+
+  tasks:
+
+  - name: Create User
+    user:
+      name: "{{item}}"
+      shell: /bin/bash
+      state: present
+      groups: developer
+      append: yes
+    loop: "{{users}}"
+
+  - name: Create .ssh directory
+    file:
+      path: "/home/{{item}}/.ssh"
+      state: directory
+      mode: '0700'
+      owner: "{{item}}"
+      group: "{{item}}"
+    loop: "{{users}}"
+
+  - name: Add authorized_key
+    copy:
+      content: "fmsdmsdsd"
+      dest: "/home/{{item}}/.ssh/authorized_key"
+      owner: "{{ item }}"
+      group: "{{ item }}"
+      mode: '0600'
+    loop: "{{ users }}"

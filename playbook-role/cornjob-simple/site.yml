@@ -1,0 +1,7 @@
+---
+- name: CronJob Simple
+  hosts: webservers
+  become: yes
+
+  roles:
+    - cronjob

@@ -1,0 +1,6 @@
+---
+- name: Install Package Conditional
+  hosts: test
+  become: yes
+  roles:
+    - installer

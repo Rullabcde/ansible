@@ -1,0 +1,7 @@
+---
+- name: Setup User
+  hosts: webservers
+  become: true
+
+  roles:
+    - user_setup
