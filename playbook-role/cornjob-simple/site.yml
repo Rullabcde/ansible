@@ -1,6 +1,6 @@
 ---
 - name: CronJob Simple
-  hosts: webservers
+  hosts: all
   become: yes
 
   roles:

@@ -1,0 +1,5 @@
+---
+- name: Update && Upgrade Repository
+  apt:
+    update_cache: yes
+    upgrade: dist

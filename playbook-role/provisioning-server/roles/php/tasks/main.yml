@@ -1,0 +1,9 @@
+---
+- name: Install PHP & Dependencies
+  apt:
+    name: "{{item}}"
+    state: present
+  loop:
+    - php
+    - php-fpm
+    - php-mysql

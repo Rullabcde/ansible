@@ -1,14 +1,10 @@
-- name: Update & Upgrade
-  apt:
-    update_cache: yes
-    upgrade: dist
-
+---
 - name: Install UFW
   apt:
     name: ufw
     state: present
 
-- name: Allow SSH
+- name: Allow SSH (All Server)
   ufw:
     rule: allow
     port: 22
@@ -19,11 +15,25 @@
     rule: allow
     port: 80
     proto: tcp
+  when: "'webserver' in group_names"
 
 - name: Allow HTTPS
   ufw:
     rule: allow
     port: 443
+    proto: tcp
+  when: "'webserver' in group_names"
+
+- name: Allow MySQL
+  ufw:
+    rule: allow
+    port: 3306
+  when: "'dbserver' in group_names"
+
+- name: Allow Node Exporter
+  ufw:
+    rule: allow
+    port: 9100
     proto: tcp
 
 - name: Enable UFW

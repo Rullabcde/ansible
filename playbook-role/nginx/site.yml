@@ -1,6 +1,6 @@
 ---
 - name: Deploy Web Server Nginx
-  hosts: test
+  hosts: all
   become: yes
 
   roles:
