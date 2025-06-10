@@ -1,0 +1,17 @@
+---
+profile: production
+
+exclude_paths:
+- .cache/
+- .github/
+- molecule/
+- .molecule/
+
+skip_list:
+- yaml[line-length]
+- name[casing]
+
+offline: true
+
+use_default_rules: true
+parseable: true
