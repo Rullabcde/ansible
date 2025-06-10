@@ -1,0 +1,13 @@
+galaxy_info:
+  author: rullabcd
+  role_name: nginx
+  description: Install Nginx
+  company: SMKN 2 YOGYAKARTA
+
+  license: license (GPL-2.0-or-later, MIT, etc)
+
+  min_ansible_version: 2.1
+
+  galaxy_tags: []
+
+dependencies: []
