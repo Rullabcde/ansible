@@ -6,7 +6,7 @@
     update_cache: yes
 
 - name: Install Webservers
-  package: 
+  package:
     name: "{{ansible_os_family == 'Debian' | ternary(debian_service, redhat_service)}}"
     state: present
 
@@ -18,8 +18,3 @@
 - name: Restart Web Server if Not Active
   when: webserver_status.stdout != "active"
   notify: Restart Web Server
-
-
-
-
-  

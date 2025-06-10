@@ -4,4 +4,4 @@
   become: yes
 
   roles:
-    - firewall
+  - firewall

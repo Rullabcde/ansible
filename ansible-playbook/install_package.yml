@@ -4,10 +4,10 @@
   become: yes
   vars:
     packages:
-      - curl
-      - git
-      - unzip
-      
+    - curl
+    - git
+    - unzip
+
   tasks:
   - name: Install Packages
     apt:

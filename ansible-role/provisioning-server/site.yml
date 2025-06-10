@@ -1,22 +1,22 @@
 ---
 - name: Provisioning Webserver
   hosts: webserver
-  become: yes 
+  become: yes
 
   roles:
-    - update_system
-    - user_setup
-    - firewall
-    - webserver
-    - node_exporter
+  - update_system
+  - user_setup
+  - firewall
+  - webserver
+  - node_exporter
 
 - name: Provisioning DBserver
   hosts: dbserver
-  become: yes 
+  become: yes
 
   roles:
-    - update_system
-    - firewall
-    - php
-    - dbserver
-    - node_exporter
+  - update_system
+  - firewall
+  - php
+  - dbserver
+  - node_exporter

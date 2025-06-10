@@ -6,8 +6,8 @@ driver:
   name: docker
 
 platforms:
-  - name: ubuntu_test
-    image: ubuntu
+- name: ubuntu_test
+  image: ubuntu
 
 provisioner:
   name: ansible

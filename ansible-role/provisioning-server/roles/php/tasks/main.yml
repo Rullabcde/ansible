@@ -4,6 +4,6 @@
     name: "{{item}}"
     state: present
   loop:
-    - php
-    - php-fpm
-    - php-mysql
+  - php
+  - php-fpm
+  - php-mysql
