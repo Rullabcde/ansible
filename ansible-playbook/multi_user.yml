@@ -1,0 +1,19 @@
+---
+- name: Multi User
+  hosts: all
+  become: yes
+  vars:
+    users:
+    - muhammad
+    - choirul
+    - rasyid
+
+  tasks:
+  - name: Create User
+    user:
+      name: "{{item}}"
+      shell: /bin/bash
+      state: present
+      groups: developer
+      append: yes
+    loop: "{{users}}"

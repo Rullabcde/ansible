@@ -1,6 +1,6 @@
 ---
 - name: Setup User
-  hosts: webservers
+  hosts: all
   become: yes
   vars:
   - user: "devops"
@@ -15,7 +15,7 @@
   - name: Add User to Sudo
     user:
       name: "{{ user }}"
-      group: sudo
+      groups: sudo
       append: yes
 
   - name: Create .ssh Directory
@@ -29,7 +29,7 @@
   - name: Add authorized_keys
     copy:
       dest: "/home/{{ user }}/.ssh/authorized_keys"
-      content: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCy... user@ansible"
+      content: "blablabla..."
       owner: "{{ user }}"
       group: "{{ user }}"
       mode: '0600'

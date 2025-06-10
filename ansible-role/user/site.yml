@@ -3,5 +3,9 @@
   hosts: all
   become: true
 
+  pre_tasks:
+    - name: Ping all servers to check connectivity
+      ping:
+
   roles:
     - user_setup

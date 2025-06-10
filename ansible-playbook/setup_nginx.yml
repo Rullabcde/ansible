@@ -1,6 +1,6 @@
 ---
-- name: setup webserver
-  hosts: webservers
+- name: Setup Nginx
+  hosts: all
   become: yes
 
   tasks:

@@ -3,10 +3,10 @@ all:
     webserver:
       hosts:
         webserver1:
-          ansble_host: 10.0.0.1
-          ansble_user: root
+          ansible_host: 10.0.0.1
+          ansible_user: root
     dbserver:
       hosts:
         dbserver1:
-          ansble_host: 10.0.0.2
-          ansble_user: root
+          ansible_host: 10.0.0.2
+          ansible_user: root

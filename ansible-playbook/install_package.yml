@@ -1,12 +1,13 @@
 ---
 - name: Install Packages Loop
-  hosts: webservers
+  hosts: all
   become: yes
   vars:
     packages:
       - curl
       - git
       - unzip
+      
   tasks:
   - name: Install Packages
     apt:
