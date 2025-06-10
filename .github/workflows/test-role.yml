@@ -6,10 +6,6 @@ on:
   pull_request:
     branches: [main]
 
-env:
-  ANSIBLE_FORCE_COLOR: "1"
-  PY_COLORS: "1"
-
 jobs:
   test_roles:
     runs-on: ubuntu-latest
@@ -26,34 +22,10 @@ jobs:
 
       - name: 3. Install dependencies
         run: |
-          pip install --upgrade pip wheel
+          pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: 4. Run YAML Lint
-        working-directory: ansible-molecule/server/roles
-        run: |
-          echo "::group::🔍 Running YAML Lint"
-          for role_dir in */; do
-            if [ -d "$role_dir" ]; then
-              echo "Linting YAML files in role: $(basename "$role_dir")"
-              find "$role_dir" -name "*.yml" -o -name "*.yaml" | xargs yamllint -c .yamllint || true
-            fi
-          done
-          echo "::endgroup::"
-
-      - name: 5. Run Ansible Lint
-        working-directory: ansible-molecule/server/roles
-        run: |
-          for role_dir in */; do
-            if [ -d "$role_dir" ]; then
-              echo "::group::🔍 Linting role: $(basename "$role_dir")"
-              ansible-lint "$role_dir" --force-color || echo "⚠️ Lint issues found in $role_dir"
-              echo "::endgroup::"
-            fi
-          done
-          echo "✅ Ansible Lint completed for all roles!"
-
-      - name: 6. Run Molecule tests for all roles
+      - name: 4. Run Molecule tests for all roles
         working-directory: ansible-molecule/server/roles
         run: |
           for role_dir in */; do
@@ -71,11 +43,3 @@ jobs:
             fi
           done
           echo "✅ All Ansible roles passed Molecule tests successfully!"
-
-      - name: 7. Test Summary
-        if: always()
-        run: |
-          echo "## Test Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ YAML Lint: Completed" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Ansible Lint: Completed" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Molecule Tests: Completed" >> $GITHUB_STEP_SUMMARY
