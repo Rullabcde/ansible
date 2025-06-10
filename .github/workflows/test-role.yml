@@ -38,6 +38,7 @@ jobs:
           source ansible-venv/bin/activate
           pip install --upgrade pip wheel
           pip install ansible molecule 'molecule-plugins[docker]'
+          pip install molecule[docker] docker pytest testinfra
 
       - name: Run Molecule tests for all roles
         run: |
@@ -46,6 +47,7 @@ jobs:
           for role_dir in */; do
             if [ -d "$role_dir/molecule" ]; then
               echo "--> Testing role: $(basename $role_dir)"
-              (cd "$role_dir" && molecule test)
+              (cd "$role_dir" && molecule test) || exit 1
             fi
           done
+          echo "All Ansible roles passed Molecule tests successfully!"

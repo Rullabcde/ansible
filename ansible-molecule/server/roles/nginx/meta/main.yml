@@ -1,8 +1,8 @@
+#SPDX-License-Identifier: MIT-0
 galaxy_info:
-  author: rullabcd
   role_name: nginx
-  description: Install Nginx
-  company: SMKN 2 YOGYAKARTA
+  author: rullabcd
+  description: Install NGINX
 
   license: license (GPL-2.0-or-later, MIT, etc)
 

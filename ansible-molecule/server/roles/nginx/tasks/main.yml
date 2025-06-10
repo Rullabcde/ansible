@@ -1,5 +1,5 @@
 ---
-# tasks file for roles/nginx
+# tasks file for nginx
 - name: Install NGINX
   apt:
     name: nginx

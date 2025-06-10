@@ -6,16 +6,14 @@ driver:
   name: docker
 
 platforms:
-- name: instance
-  image: ubuntu
-  privileged: true
-  pre_build_image: true
+  - name: ubuntu_test
+    image: ubuntu
 
 provisioner:
   name: ansible
 
 verifier:
-  name: ansible
+  name: testinfra
 
 scenario:
   name: default

@@ -1,12 +1,7 @@
+---
 - name: Converge
   hosts: all
-  become: true
   tasks:
-  - name: Install Python 3 for Ansible
-    raw: apt-get update && apt-get install -y python3
-  - name: Symlink python3 to /usr/bin/python (optional)
-    raw: ln -s /usr/bin/python3 /usr/bin/python || true
-
-  - name: Include role under test
-    include_role:
-      name: nginx
+    - name: "Include nginx"
+      include_role:
+        name: "nginx"
