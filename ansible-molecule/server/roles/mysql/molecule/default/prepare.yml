@@ -1,16 +1,17 @@
 ---
-- name: Prepare Ubuntu instances for Ansible role testing
+- name: Prepare
   hosts: all
   gather_facts: no
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
 
   tasks:
   - name: Update apt cache
-    ansible.builtin.apt:
+    apt:
       update_cache: yes
-    when: ansible_os_family == 'Debian'
 
   - name: Install common dependencies for Ansible
-    ansible.builtin.apt:
+    apt:
       name:
       - python3
       - python3-apt
@@ -19,17 +20,8 @@
       - curl
       - wget
       state: present
-    when: ansible_os_family == 'Debian'
 
-  - name: Ensure the "unattended-upgrades" package is installed (good practice)
-    ansible.builtin.apt:
+  - name: Ensure the "unattended-upgrades" package is installed
+    apt:
       name: unattended-upgrades
       state: present
-    when: ansible_os_family == 'Debian'
-
-  - name: Ensure python is in the PATH for Ansible
-    ansible.builtin.raw: "ln -s /usr/bin/python3 /usr/bin/python"
-    args:
-      creates: /usr/bin/python
-    changed_when: false
-    when: ansible_os_family == 'Debian' and not ansible_python_interpreter.startswith('/usr/bin/python')

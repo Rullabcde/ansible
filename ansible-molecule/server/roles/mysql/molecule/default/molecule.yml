@@ -9,18 +9,12 @@ platforms:
 - name: mysql-test-instance
   image: ubuntu:latest
   pre_build_image: true
-  privileged: true
-  command: "/sbin/init"
-  volumes:
-  - /sys/fs/cgroup:/sys/fs/cgroup:ro
 
 provisioner:
   name: ansible
 
 verifier:
   name: testinfra
-  options:
-    v: 1
 
 scenario:
   name: default
