@@ -62,7 +62,7 @@ jobs:
   test_roles:
     name: Test Ansible Roles
     runs-on: ubuntu-latest
-    needs: lint # Wait for linting to pass before running tests
+    needs: lint
 
     steps:
       - name: 1. Checkout code
@@ -86,7 +86,6 @@ jobs:
           for role_dir in */; do
             if [ -d "$role_dir" ]; then
               echo "Checking role structure for: $(basename "$role_dir")"
-              # Check for required directories/files
               if [ ! -f "$role_dir/tasks/main.yml" ] && [ ! -f "$role_dir/tasks/main.yaml" ]; then
                 echo "⚠️ Warning: No main.yml found in tasks for role $(basename "$role_dir")"
               fi
@@ -103,16 +102,12 @@ jobs:
           for role_dir in */; do
             if [ -d "$role_dir/molecule" ]; then
               echo "::group::🧪 Testing role: $(basename "$role_dir")"
-              cd "$role_dir"
-              
-              # Run molecule lint first
+              cd "$role_dir"        
               echo "Running molecule lint..."
               molecule lint --scenario-name default || {
                 echo "❌ Molecule lint failed for role: $(basename "$role_dir")"
                 exit 1
               }
-              
-              # Run molecule test
               echo "Running molecule test..."
               molecule test --scenario-name default || {
                 echo "❌ Test failed for role: $(basename "$role_dir")"
