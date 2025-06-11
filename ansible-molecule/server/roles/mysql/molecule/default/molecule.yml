@@ -1,0 +1,24 @@
+
+---
+dependency:
+  name: galaxy
+
+driver:
+  name: docker
+
+platforms:
+  - name: mysql-test-instance
+    image: ubuntu:latest
+    pre_build_image: true
+    privileged: true
+
+provisioner:
+  name: ansible
+
+verifier:
+  name: testinfra
+  options:
+    v: 1
+
+scenario:
+  name: default
