@@ -26,10 +26,10 @@ jobs:
           pip install --upgrade pip
           pip install yamllint
 
-      - name: 4. Run yamllint
+      - name: 4. Run yamllint with custom config
         run: |
-          echo "🔍 Running yamllint on all YAML files..."
-          yamllint . || {
+          echo "🔍 Running yamllint with custom config..."
+          yamllint -c .yamllint.yml . || {
             echo "❌ yamllint check failed!"
             exit 1
           }
