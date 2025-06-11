@@ -1,45 +1,81 @@
-name: Test All Ansible Roles
+name: Molecule Test
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
     branches: [main]
 
 jobs:
-  test_roles:
+  molecule-test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.9]
 
     steps:
-      - name: 1. Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - name: 2. Set up Python 3.x
-        uses: actions/setup-python@v5
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
         with:
-          python-version: "3.11"
-          cache: "pip"
+          python-version: ${{ matrix.python-version }}
 
-      - name: 3. Install dependencies
+      - name: Install dependencies
         run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
+          python -m pip install --upgrade pip
+          pip install molecule[docker] ansible-lint yamllint
+          pip install molecule-plugins[docker]
+          pip install testinfra
+          pip install pytest
 
-      - name: 4. Run Molecule tests for all roles
-        working-directory: ansible-molecule/server/roles
+      - name: Find Ansible roles
+        id: find-roles
         run: |
-          for role_dir in */; do
-            if [ -d "$role_dir/molecule" ]; then
-              echo "::group::🧪 Testing role: $(basename "$role_dir")"
-              cd "$role_dir"
-              molecule test --scenario-name default || {
-                echo "❌ Test failed for role: $(basename "$role_dir")"
+          ROLES_DIR="ansible-molecule/server/roles"
+
+          if [ -d "$ROLES_DIR" ]; then
+            ROLES=$(find $ROLES_DIR -maxdepth 1 -mindepth 1 -type d -exec basename {} \; | jq -R -s -c 'split("\n")[:-1]')
+            echo "roles=$ROLES" >> $GITHUB_OUTPUT
+            echo "Found roles: $ROLES"
+            echo "Roles directory found: $ROLES_DIR"
+          else
+            echo "roles=[]" >> $GITHUB_OUTPUT
+            echo "No roles directory found at: $ROLES_DIR"
+          fi
+
+      - name: Test each role with Molecule
+        if: steps.find-roles.outputs.roles != '[]'
+        run: |
+          ROLES_DIR="ansible-molecule/server/roles"  # Sesuaikan dengan direktori Anda
+
+          echo "${{ steps.find-roles.outputs.roles }}" | jq -r '.[]' | while read role; do
+            echo "Testing role: $role"
+            
+            cd "$ROLES_DIR/$role"
+            
+            if [ -f "molecule/default/molecule.yml" ] || [ -f "molecule.yml" ]; then
+              echo "Running molecule test for $role..."
+              
+              export TESTINFRA_BACKEND=ansible
+              
+              molecule test
+              
+              if [ $? -eq 0 ]; then
+                echo "✅ Molecule test passed for role: $role"
+              else
+                echo "❌ Molecule test failed for role: $role"
                 exit 1
-              }
-              cd ..
-              echo "::endgroup::"
+              fi
             else
-              echo "⚠️ No molecule tests found for role: $(basename "$role_dir")"
+              echo "⚠️  No molecule configuration found for role: $role, skipping..."
             fi
+            
+            cd - > /dev/null
           done
-          echo "✅ All Ansible roles passed Molecule tests successfully!"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "Molecule testing completed for all roles in the specified directory"

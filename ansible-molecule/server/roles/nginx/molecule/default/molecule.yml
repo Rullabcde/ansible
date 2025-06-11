@@ -6,14 +6,21 @@ driver:
   name: docker
 
 platforms:
-- name: ubuntu_test
-  image: ubuntu
+- name: nginx-test-instance
+  image: quay.io/ansible/centos7-ansible:latest
+  pre_build_image: true
+  privileged: true
+  volumes:
+  - /sys/fs/cgroup:/sys/fs/cgroup:ro
+  command: "/usr/sbin/init"
 
 provisioner:
   name: ansible
 
 verifier:
   name: testinfra
+  options:
+    v: 1
 
 scenario:
   name: default
