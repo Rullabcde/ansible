@@ -2,14 +2,9 @@ name: Check Roles
 
 on:
   push:
-    paths:
-      - "ansible-role/provisioning-server/roles/**"
-      - "ansible-role/provisioning-server/site.yml"
+    branches: [main]
   pull_request:
-    paths:
-      - "ansible-role/provisioning-server/roles/**"
-      - "ansible-role/provisioning-server/site.yml"
-  workflow_dispatch:
+    branches: [main]
 
 jobs:
   check-roles:
