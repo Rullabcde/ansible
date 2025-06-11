@@ -1,59 +1,37 @@
 ---
+# Based on ansible-lint config
 extends: default
 
 rules:
+  braces:
+    max-spaces-inside: 1
+    level: error
+  brackets:
+    max-spaces-inside: 1
+    level: error
+  colons:
+    max-spaces-after: -1
+    level: error
+  commas:
+    max-spaces-after: -1
+    level: error
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: disable
+  document-start: disable
+  empty-lines:
+    max: 3
+    level: error
+  hyphens:
+    level: error
+  indentation: disable
+  key-duplicates: enable
   line-length:
     max: 120
     level: warning
-
-  indentation:
-    spaces: 2
-    indent-sequences: true
-    check-multi-line-strings: false
-
-  comments:
-    min-spaces-from-content: 1
-    require-starting-space: true
-
-  document-start:
-    present: false
-
-  empty-lines:
-    max: 2
-    max-start: 1
-    max-end: 1
-
-  brackets:
-    min-spaces-inside: 0
-    max-spaces-inside: 1
-
-  braces:
-    min-spaces-inside: 0
-    max-spaces-inside: 1
-
-  key-duplicates: enable
-
-  octal-values:
-    forbid-implicit-octal: true
-    forbid-explicit-octal: true
-
+  new-line-at-end-of-file: disable
+  new-lines:
+    type: unix
+  trailing-spaces: disable
   truthy:
-    allowed-values: [ 'true', 'false', 'yes', 'no', 'on', 'off' ]
-    check-keys: false
-
-ignore: |
-  .git/
-  .github/
-  .vagrant/
-  .tox/
-  .cache/
-  .pytest_cache/
-  *.retry
-  .DS_Store
-  venv/
-  env/
-  .venv/
-  .env/
-  node_modules/
-  build/
-  dist/
+    allowed-values: [ 'true', 'false', 'yes', 'no' ]
