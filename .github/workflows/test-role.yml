@@ -102,7 +102,7 @@ jobs:
           for role_dir in */; do
             if [ -d "$role_dir/molecule" ]; then
               echo "::group::🧪 Testing role: $(basename "$role_dir")"
-              cd "$role_dir"        
+              cd "$role_dir"
               echo "Running molecule lint..."
               molecule lint --scenario-name default || {
                 echo "❌ Molecule lint failed for role: $(basename "$role_dir")"
