@@ -3,12 +3,12 @@ name: Check Roles
 on:
   push:
     paths:
-      - "provisioning-server/roles/**"
-      - "provisioning-server/site.yml"
+      - "ansible-role/provisioning-server/roles/**"
+      - "ansible-role/provisioning-server/site.yml"
   pull_request:
     paths:
-      - "provisioning-server/roles/**"
-      - "provisioning-server/site.yml"
+      - "ansible-role/provisioning-server/roles/**"
+      - "ansible-role/provisioning-server/site.yml"
   workflow_dispatch:
 
 jobs:
@@ -30,17 +30,15 @@ jobs:
 
       - name: Check roles structure
         run: |
-          cd provisioning-server
+          cd ansible-role/provisioning-server
 
           echo "🔍 Checking roles in provisioning-server/roles..."
 
-          # Check if roles directory exists
           if [ ! -d "roles" ]; then
             echo "❌ ERROR: roles directory not found!"
             exit 1
           fi
 
-          # Get all roles
           ROLES=$(ls -1 roles/)
           if [ -z "$ROLES" ]; then
             echo "❌ ERROR: No roles found!"
@@ -49,12 +47,10 @@ jobs:
 
           echo "📋 Found roles: $ROLES"
 
-          # Check each role
           FAILED=false
           for role in $ROLES; do
             echo "🔸 Checking role: $role"
             
-            # Check tasks/main.yml exists
             if [ ! -f "roles/$role/tasks/main.yml" ]; then
               echo "❌ ERROR: roles/$role/tasks/main.yml not found!"
               FAILED=true
@@ -72,7 +68,7 @@ jobs:
 
       - name: Run ansible-lint
         run: |
-          cd provisioning-server
+          cd ansible-role/provisioning-server
 
           echo "🔍 Running ansible-lint on roles..."
 
@@ -85,7 +81,7 @@ jobs:
 
       - name: Check playbook syntax
         run: |
-          cd provisioning-server
+          cd ansible-role/provisioning-server
 
           echo "🔍 Checking playbook syntax..."
 
@@ -95,7 +91,6 @@ jobs:
             exit 0
           fi
 
-          # Create temporary inventory
           echo "localhost ansible_connection=local" > inventory.tmp
 
           if ansible-playbook --syntax-check -i inventory.tmp site.yml; then
