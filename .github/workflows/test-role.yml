@@ -29,7 +29,7 @@ jobs:
       - name: 4. Run yamllint with custom config
         run: |
           echo "🔍 Running yamllint with custom config..."
-          yamllint -c .yamllint.yml . || {
+          yamllint -c .yamllint . || {
             echo "❌ yamllint check failed!"
             exit 1
           }
