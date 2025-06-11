@@ -1,27 +1,32 @@
 ---
-- name: Prepare
+- name: Prepare Host | Bootstrap core dependencies
   hosts: all
   gather_facts: no
-  vars:
-    ansible_python_interpreter: /usr/bin/python3
+  # This play should be run with a user that has root privileges without sudo,
+  # e.g., by connecting as the 'root' user itself.
+  # Example command: ansible-playbook prepare.yml -u root
 
   tasks:
-  - name: Update apt cache
-    apt:
-      update_cache: yes
+    - name: Bootstrap sudo and python3
+      raw: |
+        if command -v sudo >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
+          echo "Sudo and Python3 already installed."
+        else
+          apt-get -y update && apt-get install -y sudo python3-minimal python3-apt
+        fi
+      changed_when: false
+      failed_when: false
 
-  - name: Install common dependencies for Ansible
-    apt:
-      name:
-      - python3
-      - python3-apt
-      - sudo
-      - ca-certificates
-      - curl
-      - wget
-      state: present
+    - name: Gather facts after installing python
+      # Now that python is installed, we can gather facts
+      setup:
 
-  - name: Ensure the "unattended-upgrades" package is installed
-    apt:
-      name: unattended-upgrades
-      state: present
+    - name: Install common dependencies
+      apt:
+        name:
+          - ca-certificates
+          - curl
+          - wget
+          - unattended-upgrades
+        state: present
+        update_cache: yes # You can update cache here again safely

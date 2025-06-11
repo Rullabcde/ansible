@@ -1,6 +1,6 @@
 ---
 - name: Converge
   hosts: all
-  tasks:
+  become: true
   roles:
   - role: nginx
