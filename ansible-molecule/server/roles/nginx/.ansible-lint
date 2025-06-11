@@ -1,0 +1,88 @@
+---
+
+kinds:
+- yaml: "**/*.yaml"
+- yaml: "**/*.yml"
+- playbook: "**/playbooks/*.yml"
+- playbook: "**/playbooks/*.yaml"
+- playbook: "**/*playbook*.yml"
+- playbook: "**/*playbook*.yaml"
+- tasks: "**/tasks/*.yml"
+- tasks: "**/tasks/*.yaml"
+- handlers: "**/handlers/*.yml"
+- handlers: "**/handlers/*.yaml"
+- vars: "**/vars/*.yml"
+- vars: "**/vars/*.yaml"
+- defaults: "**/defaults/*.yml"
+- defaults: "**/defaults/*.yaml"
+- meta: "**/meta/*.yml"
+- meta: "**/meta/*.yaml"
+- requirements: "**/requirements.yml"
+- requirements: "**/requirements.yaml"
+
+exclude_paths:
+- .cache/
+- .github/
+- .git/
+- .vagrant/
+- .tox/
+- .pytest_cache/
+- venv/
+- env/
+- .venv/
+- .env/
+- node_modules/
+- build/
+- dist/
+- "*.retry"
+- molecule/*/converge.yml
+
+offline: true
+
+quiet: false
+
+colored: true
+
+skip_list:
+- yaml[line-length]
+- name[casing]
+- risky-file-permissions
+- role-name
+- galaxy[no-changelog]
+- fqcn[action-core]
+
+warn_list:
+- experimental
+- ignore-errors
+- unnamed-task
+- no-changed-when
+- command-instead-of-module
+- package-latest
+
+profile:
+- production
+
+rules:
+  yaml[line-length]:
+    max: 120
+
+  jinja[spacing]:
+    enabled: false
+
+  name[missing]:
+    enabled: true
+
+  name[template]:
+    enabled: false
+
+var-naming:
+- pattern: '^[a-z_][a-z0-9_]*$'
+  msg: "Variables should be lowercase with underscores"
+
+mock_modules:
+- custom_module
+- internal_module
+
+mock_roles:
+- example.role
+- company.common

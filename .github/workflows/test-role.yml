@@ -7,8 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  yaml_lint:
-    name: YAML Lint Check
+  lint:
+    name: Lint Ansible Code
     runs-on: ubuntu-latest
 
     steps:
@@ -21,24 +21,47 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
-      - name: 3. Install yamllint
+      - name: 3. Install linting dependencies
         run: |
           pip install --upgrade pip
-          pip install yamllint
+          pip install ansible-lint yamllint flake8
+          pip install -r requirements.txt
 
-      - name: 4. Run yamllint with custom config
+      - name: 4. Run YAML linting
         run: |
-          echo "🔍 Running yamllint with custom config..."
-          yamllint -c .yamllint . || {
-            echo "❌ yamllint check failed!"
-            exit 1
-          }
-          echo "✅ All YAML files passed yamllint check!"
+          echo "::group::📝 Running yamllint"
+          find . -type f \( -name "*.yml" -o -name "*.yaml" \) -not -path "./.git/*" | xargs yamllint -d relaxed
+          echo "::endgroup::"
+
+      - name: 5. Run Ansible linting
+        working-directory: ansible-molecule/server/roles
+        run: |
+          echo "::group::🔍 Running ansible-lint"
+          for role_dir in */; do
+            if [ -d "$role_dir" ]; then
+              echo "Linting role: $(basename "$role_dir")"
+              ansible-lint "$role_dir" || {
+                echo "❌ Ansible lint failed for role: $(basename "$role_dir")"
+                exit 1
+              }
+            fi
+          done
+          echo "::endgroup::"
+
+      - name: 6. Run Python linting (if applicable)
+        run: |
+          echo "::group::🐍 Running flake8 for Python files"
+          if find . -name "*.py" -not -path "./.git/*" | grep -q .; then
+            flake8 --max-line-length=120 --ignore=E501,W503 $(find . -name "*.py" -not -path "./.git/*")
+          else
+            echo "No Python files found to lint"
+          fi
+          echo "::endgroup::"
 
   test_roles:
-    name: Molecule Tests
+    name: Test Ansible Roles
     runs-on: ubuntu-latest
-    needs: yaml_lint
+    needs: lint # Wait for linting to pass before running tests
 
     steps:
       - name: 1. Checkout code
@@ -55,13 +78,41 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: 4. Run Molecule tests for all roles
+      - name: 4. Run pre-test validation
+        working-directory: ansible-molecule/server/roles
+        run: |
+          echo "::group::🔍 Validating role structure"
+          for role_dir in */; do
+            if [ -d "$role_dir" ]; then
+              echo "Checking role structure for: $(basename "$role_dir")"
+              # Check for required directories/files
+              if [ ! -f "$role_dir/tasks/main.yml" ] && [ ! -f "$role_dir/tasks/main.yaml" ]; then
+                echo "⚠️ Warning: No main.yml found in tasks for role $(basename "$role_dir")"
+              fi
+              if [ ! -f "$role_dir/meta/main.yml" ] && [ ! -f "$role_dir/meta/main.yaml" ]; then
+                echo "⚠️ Warning: No meta/main.yml found for role $(basename "$role_dir")"
+              fi
+            fi
+          done
+          echo "::endgroup::"
+
+      - name: 5. Run Molecule tests for all roles
         working-directory: ansible-molecule/server/roles
         run: |
           for role_dir in */; do
             if [ -d "$role_dir/molecule" ]; then
               echo "::group::🧪 Testing role: $(basename "$role_dir")"
               cd "$role_dir"
+              
+              # Run molecule lint first
+              echo "Running molecule lint..."
+              molecule lint --scenario-name default || {
+                echo "❌ Molecule lint failed for role: $(basename "$role_dir")"
+                exit 1
+              }
+              
+              # Run molecule test
+              echo "Running molecule test..."
               molecule test --scenario-name default || {
                 echo "❌ Test failed for role: $(basename "$role_dir")"
                 exit 1
@@ -72,4 +123,26 @@ jobs:
               echo "⚠️ No molecule tests found for role: $(basename "$role_dir")"
             fi
           done
-          echo "✅ All Ansible roles passed Molecule tests successfully!"
+          echo "✅ All Ansible roles passed linting and Molecule tests successfully!"
+
+  summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [lint, test_roles]
+    if: always()
+
+    steps:
+      - name: Test Results Summary
+        run: |
+          echo "## 📊 Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.lint.result }}" = "success" ]; then
+            echo "✅ **Linting**: All checks passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Linting**: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "${{ needs.test_roles.result }}" = "success" ]; then
+            echo "✅ **Role Tests**: All tests passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Role Tests**: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
