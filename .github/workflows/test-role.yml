@@ -48,7 +48,7 @@ jobs:
       - name: Test each role with Molecule
         if: steps.find-roles.outputs.roles != '[]'
         run: |
-          ROLES_DIR="ansible-molecule/server/roles"  # Sesuaikan dengan direktori Anda
+          ROLES_DIR="ansible-molecule/server/roles"
 
           echo "${{ steps.find-roles.outputs.roles }}" | jq -r '.[]' | while read role; do
             echo "Testing role: $role"

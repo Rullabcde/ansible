@@ -37,18 +37,18 @@ def test_nginx_config_syntax(host):
     cmd = host.run("nginx -t")
     assert cmd.rc == 0
 
-
 def test_nginx_process_running(host):
     """Test that nginx process is running."""
-    nginx_process = host.process.get(comm="nginx")
-    assert len(nginx_process) >= 1
-
+    nginx_processes = host.process.filter(comm="nginx")
+    assert len(nginx_processes) >= 1
 
 def test_nginx_user_exists(host):
-    """Test that nginx user exists."""
-    user = host.user("nginx")
-    assert user.exists
-
+    for nginx_user in ["nginx", "www-data"]:
+        user = host.user(nginx_user)
+        if user.exists:
+            assert True
+            return
+    assert False, "Neither nginx nor www-data user exists"
 
 def test_default_page_accessible(host):
     """Test that default nginx page is accessible."""
