@@ -5,23 +5,14 @@ dependency:
 driver:
   name: docker
 
-#platforms:
-#- name: nginx-test-instance
-#  image: quay.io/ansible/centos7-ansible:latest
-#  pre_build_image: true
-#  privileged: true
-#  volumes:
-#  - /sys/fs/cgroup:/sys/fs/cgroup:ro
-#  command: "/usr/sbin/init"
-
 platforms:
-  - name: nginx-test-instance
-    image: geerlingguy/docker-ubuntu2004-ansible
-    pre_build_image: true
-    privileged: true
-    command: "/sbin/init"
-    volumes:
-      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+- name: nginx-test-instance
+  image: ubuntu:latest
+  pre_build_image: true
+  privileged: true
+  command: "/sbin/init"
+  volumes:
+  - /sys/fs/cgroup:/sys/fs/cgroup:ro
 
 provisioner:
   name: ansible
