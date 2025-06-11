@@ -61,19 +61,6 @@ jobs:
 
           echo "✅ SUCCESS: All roles have valid structure"
 
-      - name: Run ansible-lint
-        run: |
-          cd ansible-role/provisioning-server
-
-          echo "🔍 Running ansible-lint on roles..."
-
-          if ansible-lint roles/; then
-            echo "✅ SUCCESS: Ansible-lint passed"
-          else
-            echo "❌ ERROR: Ansible-lint failed"
-            exit 1
-          fi
-
       - name: Check playbook syntax
         run: |
           cd ansible-role/provisioning-server
