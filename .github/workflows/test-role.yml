@@ -36,7 +36,7 @@ jobs:
           ROLES_DIR="ansible-molecule/server/roles"
 
           if [ -d "$ROLES_DIR" ]; then
-            ROLES=$(find $ROLES_DIR -maxdepth 1 -mindepth 1 -type d -exec basename {} \; | jq -R -s -c 'split("\n")[:-1]')
+            ROLES=$(find "$ROLES_DIR" -maxdepth 1 -mindepth 1 -type d -exec basename {} \; | jq -R -s -c 'split("\n")[:-1]' || echo '[]')
             echo "roles=$ROLES" >> $GITHUB_OUTPUT
             echo "Found roles: $ROLES"
             echo "Roles directory found: $ROLES_DIR"
