@@ -88,6 +88,10 @@ jobs:
       - name: Install Docker
         run: |
           docker --version
+          sudo usermod -aG docker $USER
+          systemctl enable docker
+          systemctl start docker
+          systemctl status docker
 
       - name: Install Molecule and dependencies
         run: |
