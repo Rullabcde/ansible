@@ -54,7 +54,10 @@ jobs:
               count=0
             fi
             
-            echo "roles=$roles_json" >> $GITHUB_OUTPUT
+            #echo "roles=$roles_json" >> $GITHUB_OUTPUT
+            echo "roles<<EOF" >> $GITHUB_OUTPUT
+            echo "$roles_json" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
             echo "count=$count" >> $GITHUB_OUTPUT
             echo "Total roles with molecule tests: $count"
           else
