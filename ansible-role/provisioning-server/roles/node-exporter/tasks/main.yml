@@ -1,7 +1,7 @@
 ---
 # tasks file for node-exporter
 - name: Create User Node Exporter
-  user:
+  ansible.builtin.user:
     name: "{{ node_exporter_user }}"
     shell: "{{ node_exporter_shell }}"
     system: yes
