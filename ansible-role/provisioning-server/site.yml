@@ -1,0 +1,21 @@
+---
+- name: Provision Common Configuration
+  hosts: all
+  become: true
+  roles:
+  - common
+  - user
+  - firewall
+  - node-exporter
+
+- name: Provision Database Server
+  hosts: dbserver
+  become: true
+  roles:
+  - dbserver
+
+- name: Provision Web Server
+  hosts: webserver
+  become: true
+  roles:
+  - webserver
