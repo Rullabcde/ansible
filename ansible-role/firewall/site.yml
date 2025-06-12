@@ -1,7 +1,7 @@
 ---
 - name: Setup Firewall SSH, HTTP, HTTPS
   hosts: all
-  become: yes
+  become: true
 
   roles:
   - firewall

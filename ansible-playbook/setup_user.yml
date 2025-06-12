@@ -1,35 +1,35 @@
 ---
 - name: Setup User
   hosts: all
-  become: yes
+  become: true
   vars:
-  - user: "devops"
+  - user: "rullabcd"
 
   tasks:
-  - name: Add User
-    user:
+  - name: Create User
+    ansible.builtin.user:
       name: "{{ user }}"
       shell: /bin/bash
       state: present
 
   - name: Add User to Sudo
-    user:
+    ansible.builtin.user:
       name: "{{ user }}"
       groups: sudo
       append: yes
 
   - name: Create .ssh Directory
-    file:
-      path: "/home/{{user}}/.ssh"
+    ansible.builtin.file:
+      path: "/home/{{ user }}/.ssh"
       state: directory
-      group: "{{user}}"
-      owner: "{{user}}"
+      group: "{{ user }}"
+      owner: "{{ user }}"
       mode: "0700"
 
   - name: Add authorized_keys
-    copy:
+    ansible.builtin.copy:
       dest: "/home/{{ user }}/.ssh/authorized_keys"
-      content: "blablabla..."
+      content: "ini isi ssh..."
       owner: "{{ user }}"
       group: "{{ user }}"
       mode: '0600'

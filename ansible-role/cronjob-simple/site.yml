@@ -1,0 +1,7 @@
+---
+- name: Setup Cronjob Simple
+  hosts: all
+  become: true
+
+  roles:
+  - cronjob

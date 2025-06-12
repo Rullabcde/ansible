@@ -1,7 +1,0 @@
-common_packages:
-- curl
-- git
-- htop
-
-debian_service: apache2
-redhat_service: httpd

@@ -1,23 +1,24 @@
 ---
-- name: Setup Nginx
+- name: Setup Webserver Nginx
   hosts: all
-  become: yes
+  become: true
 
   tasks:
   - name: Install Nginx
-    apt:
+    ansible.builtin.apt:
       name: nginx
       state: present
+      update_cache: yes
 
   - name: Start and Enable Nginx
-    service:
+    ansible.builtin.service:
       name: nginx
       state: started
       enabled: yes
 
   - name: Create Simple Index
-    copy:
-      content: "<h1>PLAYBOOK</h1>"
+    ansible.builtin.copy:
+      content: "<h1>Nginx Ansible-Playbook</h1>"
       dest: /var/www/html/index.html
       owner: www-data
       group: www-data

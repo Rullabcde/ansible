@@ -1,0 +1,13 @@
+---
+basic_packages:
+  - curl
+  - wget
+  - vim
+  - htop
+  - net-tools
+  - unzip
+  - git
+timezone: Asia/Jakarta
+default_user: rullabcd
+default_user_shell: /bin/bash
+default_user_pubkey: "{{ lookup('file', 'files/id_rsa.pub') }}"

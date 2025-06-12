@@ -1,0 +1,15 @@
+---
+# tasks file for roles/common
+- name: Update & Upgrade System
+  ansible.builtin.apt:
+    update_cache: yes
+    upgrade: dist
+
+- name: Install Basic Packages
+  ansible.builtin.apt:
+    name: "{{ basic_packages }}"
+    state: present
+
+- name: Set Timezone Jakarta
+  ansible.builtin.timezone:
+    name: "{{ timezone }}"

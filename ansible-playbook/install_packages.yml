@@ -1,0 +1,17 @@
+---
+- name: Install Multi Packages
+  hosts: all
+  become: true
+  vars:
+    packages:
+    - curl
+    - git
+    - unzip
+
+  tasks:
+  - name: Install Packages
+    ansible.builtin.apt:
+      name: "{{item}}"
+      state: present
+      update_cache: yes
+    loop: "{{packages}}"

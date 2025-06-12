@@ -1,0 +1,40 @@
+---
+# tasks file for node-exporter
+- name: Create User Node Exporter
+  user:
+    name: "{{ node_exporter_user }}"
+    shell: "{{ node_exporter_shell }}"
+    system: yes
+
+- name: Download Node Exporter
+  get_url:
+    url: "{{ node_exporter_url }}"
+    dest: "{{ node_exporter_archive }}"
+    mode: '0644'
+
+- name: Extract Node Exporter
+  unarchive:
+    src: "{{ node_exporter_archive }}"
+    dest: "{{ node_exporter_extract_dir }}"
+    remote_src: yes
+    extra_opts: [ --strip-components=1 ]
+    creates: "{{ node_exporter_binary }}"
+
+- name: Set permissions
+  file:
+    path: "{{ node_exporter_binary }}"
+    owner: "{{ node_exporter_user }}"
+    group: "{{ node_exporter_user }}"
+    mode: '0755'
+
+- name: Create Systemd service for Node Exporter
+  copy:
+    dest: "{{ node_exporter_service_path }}"
+    content: "{{ node_exporter_service_content }}"
+  notify: Restart Node Exporter
+
+- name: Start and Enable Node Exporter
+  systemd:
+    name: node_exporter
+    enabled: yes
+    state: started

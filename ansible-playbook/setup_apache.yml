@@ -1,26 +1,26 @@
 ---
-- name: Setup Apache
+- name: Setup Webserver Apache
   hosts: all
-  become: yes
+  become: true
 
   tasks:
   - name: Install Apache
-    apt:
+    ansible.builtin.apt:
       name: apache2
       state: present
       update_cache: yes
 
   - name: Start and Enable Apache
-    service:
+    ansible.builtin.service:
       name: apache2
       state: started
       enabled: yes
 
   - name: Create Simple Index
-    copy:
+    ansible.builtin.copy:
       content: |
         <html>
-        <head><title>Halo Ansible</title></head>
+        <head><title>Webserver Apache</title></head>
         <body><h1>Ini website statis dari Ansible</h1></body>
         </html>
       dest: /var/www/html/index.html

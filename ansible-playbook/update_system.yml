@@ -1,10 +1,10 @@
 ---
-- name: Update & Upgrade
+- name: Update & Upgrade System
   hosts: all
-  become: yes
+  become: true
 
   tasks:
-  - name: Update & Upgrade
-    apt:
+  - name: Update & Upgrade System
+    ansible.builtin.apt:
       update_cache: yes
       upgrade: dist

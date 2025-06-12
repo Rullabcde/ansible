@@ -1,11 +1,12 @@
 ---
-- name: Install Apache
-  apt:
-    name: apache2
+# tasks file for webserver
+- name: Install Webserver
+  ansible.builtin.apt:
+    name: "{{ webserver_package }}"
     state: present
 
-- name: Start & Enable Apache
-  service:
-    name: apache2
+- name: Start and Enable Webserver
+  ansible.builtin.service:
+    name: "{{ webserver_package }}"
     state: started
     enabled: yes

@@ -1,7 +1,0 @@
----
-- name: CronJob Simple
-  hosts: all
-  become: yes
-
-  roles:
-  - cronjob

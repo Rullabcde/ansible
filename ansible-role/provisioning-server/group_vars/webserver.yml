@@ -1,0 +1,8 @@
+webserver_package: nginx
+webserver_port: 80
+webserver_root: /var/www/html
+webserver_index: index.html
+firewall_allowed_ports:
+  - 22
+  - 80
+  - 443
