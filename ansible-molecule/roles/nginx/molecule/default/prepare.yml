@@ -1,0 +1,8 @@
+---
+- name: Prepare
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Ensure apt cache is updated on Debian-based systems
+      apt:
+        update_cache: yes

@@ -1,0 +1,18 @@
+---
+- name: Create
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  no_log: "{{ molecule_no_log }}"
+  tasks:
+    - name: Create Docker container
+      community.docker.docker_container:
+        name: "{{ item.name }}"
+        image: "{{ item.image }}"
+        privileged: "{{ item.privileged | default(omit) }}"
+        cgroupns_mode: "{{ item.cgroupns_mode | default(omit) }}"
+        volumes: "{{ item.volume_mounts | default(omit) }}"
+        command: "{{ item.command | default('/lib/systemd/systemd') }}"
+        state: started
+        detach: yes
+      loop: "{{ molecule_yml.platforms }}"

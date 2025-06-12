@@ -1,0 +1,26 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: true
+  become: yes
+  tasks:
+    - name: "Check if nginx package is installed"
+      ansible.builtin.package:
+        name: "nginx"
+        state: present
+      check_mode: yes
+
+    - name: "Check if nginx service is started and enabled"
+      ansible.builtin.service:
+        name: "nginx"
+        state: started
+        enabled: yes
+      check_mode: yes
+
+    - name: "Check if nginx is listening on port 80"
+      ansible.builtin.wait_for:
+        port: 80
+        host: "{{ ansible_default_ipv4.address | default('127.0.0.1') }}"
+        state: started
+        timeout: 5
+

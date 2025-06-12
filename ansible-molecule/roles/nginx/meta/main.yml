@@ -1,8 +1,8 @@
-#SPDX-License-Identifier: MIT-0
 galaxy_info:
-  role_name: nginx
   author: rullabcd
-  description: Install NGINX
+  description: install nginx
+  company: samas
+  role_name: nginx
 
   license: license (GPL-2.0-or-later, MIT, etc)
 
