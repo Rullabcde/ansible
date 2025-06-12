@@ -105,15 +105,11 @@ jobs:
 
       - name: Install Molecule and dependencies
         run: |
-          python -m pip install --upgrade pip
-          # Install specific versions to avoid compatibility issues
-          pip install ansible>=6.0.0,<8.0.0
-          pip install molecule>=4.0.0,<6.0.0
-          pip install molecule-docker>=2.0.0
-          pip install ansible-lint>=6.0.0
-          pip install testinfra>=7.0.0
-          pip install docker>=6.0.0
-
+          apt install python3 python3-pip python3-venv
+          python3 -m venv ansible-venv
+          source ansible-venv/bin/activate
+          pip install --upgrade pip
+          pip install ansible molecule molecule-docker ansible-lint testinfra
           # Verify installations
           molecule --version
           ansible --version
