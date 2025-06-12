@@ -54,7 +54,6 @@ jobs:
               count=0
             fi
             
-            #echo "roles=$roles_json" >> $GITHUB_OUTPUT
             echo "roles<<EOF" >> $GITHUB_OUTPUT
             echo "$roles_json" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
@@ -85,17 +84,40 @@ jobs:
         with:
           python-version: "3.9"
 
-      - name: Install Docker
+      - name: Setup Docker
         run: |
-          docker --version
+          # Ensure Docker daemon is running
+          sudo systemctl start docker
+          sudo systemctl enable docker
+
+          # Add current user to docker group
           sudo usermod -aG docker $USER
+
+          # Restart docker to ensure clean state
+          sudo systemctl restart docker
+
+          # Wait for docker to be ready
+          timeout 30 bash -c 'until docker info > /dev/null 2>&1; do sleep 1; done'
+
+          # Verify docker is working
+          docker --version
+          docker info
 
       - name: Install Molecule and dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ansible molecule molecule-docker ansible-lint testinfra
+          # Install specific versions to avoid compatibility issues
+          pip install ansible>=6.0.0,<8.0.0
+          pip install molecule>=4.0.0,<6.0.0
+          pip install molecule-docker>=2.0.0
+          pip install ansible-lint>=6.0.0
+          pip install testinfra>=7.0.0
+          pip install docker>=6.0.0
+
+          # Verify installations
           molecule --version
           ansible --version
+          docker --version
 
       - name: Check molecule configuration
         run: |
@@ -121,6 +143,20 @@ jobs:
             exit 1
           fi
 
+      - name: Pre-flight Docker Check
+        run: |
+          echo "=== Docker Pre-flight Check ==="
+          # Check if docker daemon is accessible
+          if ! docker info > /dev/null 2>&1; then
+            echo "❌ Docker daemon not accessible"
+            sudo systemctl status docker
+            exit 1
+          fi
+
+          # Test basic docker functionality
+          docker run --rm hello-world
+          echo "✅ Docker is working correctly"
+
       - name: Run Molecule Test
         run: |
           echo "=== Running Molecule test for role: ${{ matrix.role }} ==="
@@ -129,21 +165,46 @@ jobs:
           # Set working directory untuk molecule
           export MOLECULE_PROJECT_DIRECTORY=$(pwd)
 
-          # Run molecule test dengan verbose output
-          if molecule test --all; then
+          # Ensure clean state
+          echo "Cleaning up any existing containers..."
+          molecule destroy --all || true
+
+          # Wait a bit for cleanup
+          sleep 5
+
+          # Run molecule test dengan verbose output dan better error handling
+          echo "Starting molecule test..."
+          if molecule test --all --parallel; then
             echo "✅ Molecule test passed for role: ${{ matrix.role }}"
           else
             echo "❌ Molecule test failed for role: ${{ matrix.role }}"
+            echo "=== Debugging Information ==="
+            echo "Docker containers:"
+            docker ps -a
+            echo "Docker images:"
+            docker images
+            echo "Docker system info:"
+            docker system df
             exit 1
           fi
 
-      - name: Cleanup containers (if any failed)
-        if: failure()
+      - name: Cleanup containers (always run)
+        if: always()
         run: |
           echo "=== Cleaning up Docker containers for role: ${{ matrix.role }} ==="
-          cd "${{ env.ROLES_DIRECTORY }}/${{ matrix.role }}"
-          molecule destroy --all || true
+          cd "${{ env.ROLES_DIRECTORY }}/${{ matrix.role }}" || exit 0
+
+          # Force cleanup with better error handling
+          molecule destroy --all || echo "Molecule destroy failed, continuing with manual cleanup"
+
+          # Manual cleanup of containers that might be stuck
+          docker ps -aq --filter "label=molecule" | xargs -r docker rm -f || true
+          docker network ls --filter "label=molecule" -q | xargs -r docker network rm || true
+
+          # Clean up unused resources
           docker system prune -f || true
+
+          echo "✅ Cleanup completed"
 
       - name: Role Test Result
         if: always()
@@ -152,106 +213,5 @@ jobs:
             echo "🎉 SUCCESS: Role '${{ matrix.role }}' passed molecule tests!"
           else
             echo "💥 FAILURE: Role '${{ matrix.role }}' failed molecule tests!"
+            echo "Check the logs above for detailed error information."
           fi
-
-  # Job untuk generate final report
-  test-summary:
-    needs: [find-roles, test-roles]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Generate Test Summary
-        run: |
-          echo "# 🧪 Molecule Test Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          total_roles="${{ needs.find-roles.outputs.roles-count }}"
-
-          if [ "$total_roles" -eq 0 ]; then
-            echo "⚠️ **No roles with molecule configuration found**" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Make sure your roles have molecule directory or molecule.yml file in: \`${{ env.ROLES_DIRECTORY }}\`" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### Expected structure:" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-            echo "${{ env.ROLES_DIRECTORY }}/" >> $GITHUB_STEP_SUMMARY
-            echo "├── role1/" >> $GITHUB_STEP_SUMMARY
-            echo "│   ├── molecule/" >> $GITHUB_STEP_SUMMARY
-            echo "│   │   └── default/" >> $GITHUB_STEP_SUMMARY
-            echo "│   │       ├── molecule.yml" >> $GITHUB_STEP_SUMMARY
-            echo "│   │       └── converge.yml" >> $GITHUB_STEP_SUMMARY
-            echo "│   └── tasks/" >> $GITHUB_STEP_SUMMARY
-            echo "│       └── main.yml" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-            exit 0
-          fi
-
-          echo "**Total Roles Tested:** $total_roles" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-
-          # Check test-roles job status
-          if [ "${{ needs.test-roles.result }}" == "success" ]; then
-            echo "## ✅ MOLECULE TEST RESULTS: SUCCESS" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "🎉 **All $total_roles roles passed molecule tests successfully!**" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### What was tested:" >> $GITHUB_STEP_SUMMARY
-            echo "- **Role deployment** in isolated containers" >> $GITHUB_STEP_SUMMARY
-            echo "- **Idempotency** checks" >> $GITHUB_STEP_SUMMARY
-            echo "- **Custom verification** (if configured)" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ needs.test-roles.result }}" == "failure" ]; then
-            echo "## ❌ MOLECULE TEST RESULTS: FAILURE" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "💥 **Some roles failed molecule tests.**" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Check the individual job logs for detailed error information." >> $GITHUB_STEP_SUMMARY
-          else
-            echo "## ⚠️ MOLECULE TEST RESULTS: SKIPPED/CANCELLED" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Tests were skipped or cancelled." >> $GITHUB_STEP_SUMMARY
-          fi
-
-      - name: Final Status Check
-        run: |
-          total_roles="${{ needs.find-roles.outputs.roles-count }}"
-
-          if [ "$total_roles" -eq 0 ]; then
-            echo "⚠️ No roles with molecule configuration found to test"
-            exit 0
-          fi
-
-          if [ "${{ needs.test-roles.result }}" == "success" ]; then
-            echo "🎉 SUCCESS: All roles passed molecule tests!"
-            exit 0
-          else
-            echo "💥 FAILURE: Some roles failed molecule tests!"
-            exit 1
-          fi
-
-  # Job untuk memberikan setup guidance jika tidak ada molecule config
-  setup-guidance:
-    needs: find-roles
-    if: needs.find-roles.outputs.roles-count == 0
-    runs-on: ubuntu-latest
-    steps:
-      - name: Provide Setup Guidance
-        run: |
-          echo "📚 Setup Guidance for Molecule Testing" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "To enable molecule testing for your roles, you need to initialize molecule in each role:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 1. Install molecule:" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "pip install molecule[docker]" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 2. Initialize molecule in your role:" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "cd ${{ env.ROLES_DIRECTORY }}/your-role-name" >> $GITHUB_STEP_SUMMARY
-          echo "molecule init scenario --driver-name docker" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 3. Test your role locally:" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "molecule test" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
