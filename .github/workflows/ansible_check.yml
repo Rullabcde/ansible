@@ -106,8 +106,6 @@ jobs:
       - name: Install Molecule and dependencies
         run: |
           sudo apt install python3 python3-pip python3-venv
-          python3 -m venv ansible-venv
-          source ansible-venv/bin/activate
           pip install --upgrade pip
           pip install ansible molecule molecule-docker ansible-lint testinfra
           # Verify installations
