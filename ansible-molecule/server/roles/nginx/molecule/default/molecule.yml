@@ -6,14 +6,9 @@ driver:
   name: docker
 
 platforms:
-- name: nginx-test-instance
-  image: ubuntu:latest
+- name: nginx-instance
+  image: ubuntu:20.04
   pre_build_image: true
-  privileged: true
-  command: "/lib/systemd/systemd"
-  volumes:
-    - /sys/fs/cgroup:/sys/fs/cgroup:ro
-
 
 provisioner:
   name: ansible

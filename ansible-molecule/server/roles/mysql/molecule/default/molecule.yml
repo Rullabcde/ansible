@@ -6,8 +6,8 @@ driver:
   name: docker
 
 platforms:
-- name: mysql-test-instance
-  image: ubuntu:latest
+- name: mysql-instance
+  image: ubuntu:20.04
   pre_build_image: true
 
 provisioner:
