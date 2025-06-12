@@ -1,5 +1,6 @@
-name: Test Ansible Roles
+name: Test Ansible Roles with Molecule
 
+# Trigger workflow
 on:
   push:
     branches: [main]
@@ -8,11 +9,12 @@ on:
   workflow_dispatch:
 
 env:
-  ROLES_DIRECTORY: "ansible-role/provisioning-server/roles"
-  ANSIBLE_HOST_KEY_CHECKING: "False"
-  ANSIBLE_DEPRECATION_WARNINGS: "False"
+  ROLES_DIRECTORY: "ansible-molecule/server/roles"
+  PY_COLORS: "1"
+  ANSIBLE_FORCE_COLOR: "1"
 
 jobs:
+  # Job untuk menemukan semua roles yang memiliki molecule config
   find-roles:
     runs-on: ubuntu-latest
     outputs:
@@ -22,24 +24,46 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Find all roles
+      - name: Find roles with molecule tests
         id: find-roles
         run: |
           if [ -d "${{ env.ROLES_DIRECTORY }}" ]; then
-            roles=$(find ${{ env.ROLES_DIRECTORY }} -name "tasks" -type d | \
-                    xargs -I {} dirname {} | \
-                    xargs -I {} basename {} | \
-                    jq -R -s -c 'split("\n")[:-1]')
-            count=$(echo "$roles" | jq length)
-            echo "roles=$roles" >> $GITHUB_OUTPUT
+            # Cari roles yang memiliki molecule directory atau molecule.yml
+            roles_array=()
+            
+            for role_dir in ${{ env.ROLES_DIRECTORY }}/*/; do
+              if [ -d "$role_dir" ]; then
+                role_name=$(basename "$role_dir")
+                
+                # Check jika role memiliki molecule config
+                if [ -d "$role_dir/molecule" ] || [ -f "$role_dir/molecule.yml" ]; then
+                  roles_array+=("$role_name")
+                  echo "Found role with molecule config: $role_name"
+                else
+                  echo "Role $role_name doesn't have molecule config, skipping..."
+                fi
+              fi
+            done
+            
+            # Convert array to JSON
+            if [ ${#roles_array[@]} -gt 0 ]; then
+              roles_json=$(printf '%s\n' "${roles_array[@]}" | jq -R . | jq -s .)
+              count=${#roles_array[@]}
+            else
+              roles_json="[]"
+              count=0
+            fi
+            
+            echo "roles=$roles_json" >> $GITHUB_OUTPUT
             echo "count=$count" >> $GITHUB_OUTPUT
-            echo "Found $count roles: $(echo "$roles" | jq -r '.[]' | tr '\n' ' ')"
+            echo "Total roles with molecule tests: $count"
           else
             echo "roles=[]" >> $GITHUB_OUTPUT
             echo "count=0" >> $GITHUB_OUTPUT
             echo "Directory ${{ env.ROLES_DIRECTORY }} not found"
           fi
 
+  # Job untuk testing setiap role dengan molecule
   test-roles:
     needs: find-roles
     if: needs.find-roles.outputs.roles-count > 0
@@ -56,120 +80,77 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.x"
+          python-version: "3.9"
 
-      - name: Install Ansible and dependencies
+      - name: Install Docker
+        run: |
+          docker --version
+
+      - name: Install Molecule and dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ansible ansible-lint yamllint
+          pip install molecule[docker] ansible-core pytest-testinfra
+          molecule --version
           ansible --version
 
-      - name: Validate role structure
+      - name: Check molecule configuration
         run: |
-          echo "=== Validating role structure for: ${{ matrix.role }} ==="
+          echo "=== Checking molecule configuration for role: ${{ matrix.role }} ==="
           role_path="${{ env.ROLES_DIRECTORY }}/${{ matrix.role }}"
 
-          if [ ! -d "$role_path" ]; then
-            echo "❌ Role directory does not exist: $role_path"
-            exit 1
-          fi
-
-          required_files=("tasks/main.yml")
-          for file in "${required_files[@]}"; do
-            if [ ! -f "$role_path/$file" ]; then
-              echo "❌ Required file missing: $role_path/$file"
-              exit 1
+          if [ -d "$role_path/molecule" ]; then
+            echo "✅ Found molecule directory"
+            ls -la "$role_path/molecule/"
+            
+            # Check for molecule scenarios
+            scenarios=$(find "$role_path/molecule" -maxdepth 1 -type d -not -name "molecule" | wc -l)
+            if [ $scenarios -gt 0 ]; then
+              echo "✅ Found $scenarios molecule scenarios"
+              find "$role_path/molecule" -maxdepth 1 -type d -not -name "molecule" -exec basename {} \;
+            else
+              echo "⚠️ No molecule scenarios found, will use default"
             fi
-          done
-
-          echo "✅ Role structure is valid"
-
-      - name: YAML Lint Check
-        run: |
-          echo "=== Running YAML Lint for role: ${{ matrix.role }} ==="
-          role_path="${{ env.ROLES_DIRECTORY }}/${{ matrix.role }}"
-
-          cat > .yamllint << EOF
-          extends: default
-          rules:
-            line-length:
-              max: 120
-            comments:
-              min-spaces-from-content: 1
-            indentation:
-              spaces: 2
-          EOF
-
-          if yamllint -c .yamllint "$role_path"; then
-            echo "✅ YAML lint passed"
+          elif [ -f "$role_path/molecule.yml" ]; then
+            echo "✅ Found molecule.yml file"
           else
-            echo "❌ YAML lint failed"
+            echo "❌ No molecule configuration found"
             exit 1
           fi
 
-      - name: Ansible Lint Check
+      - name: Run Molecule Test
         run: |
-          echo "=== Running Ansible Lint for role: ${{ matrix.role }} ==="
-          role_path="${{ env.ROLES_DIRECTORY }}/${{ matrix.role }}"
+          echo "=== Running Molecule test for role: ${{ matrix.role }} ==="
+          cd "${{ env.ROLES_DIRECTORY }}/${{ matrix.role }}"
 
-          cat > test_playbook.yml << EOF
-          ---
-          - hosts: localhost
-            connection: local
-            gather_facts: false
-            roles:
-              - ${{ matrix.role }}
-          EOF
+          # Set working directory untuk molecule
+          export MOLECULE_PROJECT_DIRECTORY=$(pwd)
 
-          if ansible-lint test_playbook.yml; then
-            echo "✅ Ansible lint passed"
+          # Run molecule test dengan verbose output
+          if molecule test --all; then
+            echo "✅ Molecule test passed for role: ${{ matrix.role }}"
           else
-            echo "❌ Ansible lint failed"
+            echo "❌ Molecule test failed for role: ${{ matrix.role }}"
             exit 1
           fi
 
-      - name: Syntax Check
+      - name: Cleanup containers (if any failed)
+        if: failure()
         run: |
-          echo "=== Running syntax check for role: ${{ matrix.role }} ==="
+          echo "=== Cleaning up Docker containers for role: ${{ matrix.role }} ==="
+          cd "${{ env.ROLES_DIRECTORY }}/${{ matrix.role }}"
+          molecule destroy --all || true
+          docker system prune -f || true
 
-          echo "localhost ansible_connection=local" > inventory
-
-          cat > test_playbook.yml << EOF
-          ---
-          - hosts: localhost
-            connection: local
-            gather_facts: false
-            roles:
-              - ${{ matrix.role }}
-          EOF
-
-          if ansible-playbook --syntax-check -i inventory test_playbook.yml; then
-            echo "✅ Syntax check passed"
-          else
-            echo "❌ Syntax check failed"
-            exit 1
-          fi
-
-      - name: Dry Run Test
-        run: |
-          echo "=== Running dry run test for role: ${{ matrix.role }} ==="
-
-          if ansible-playbook --check -i inventory test_playbook.yml -v; then
-            echo "✅ Dry run test passed"
-          else
-            echo "❌ Dry run test failed"
-            exit 1
-          fi
-
-      - name: Role Test Summary
+      - name: Role Test Result
         if: always()
         run: |
           if [ "${{ job.status }}" == "success" ]; then
-            echo "🎉 Role '${{ matrix.role }}' passed all tests!"
+            echo "🎉 SUCCESS: Role '${{ matrix.role }}' passed molecule tests!"
           else
-            echo "💥 Role '${{ matrix.role }}' failed tests!"
+            echo "💥 FAILURE: Role '${{ matrix.role }}' failed molecule tests!"
           fi
 
+  # Job untuk generate final report
   test-summary:
     needs: [find-roles, test-roles]
     if: always()
@@ -177,54 +158,96 @@ jobs:
     steps:
       - name: Generate Test Summary
         run: |
-          echo "# 📋 Ansible Roles Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "# 🧪 Molecule Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           total_roles="${{ needs.find-roles.outputs.roles-count }}"
 
           if [ "$total_roles" -eq 0 ]; then
-            echo "⚠️ No roles found in directory: ${{ env.ROLES_DIRECTORY }}" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **No roles with molecule configuration found**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Make sure your roles have molecule directory or molecule.yml file in: \`${{ env.ROLES_DIRECTORY }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Expected structure:" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "${{ env.ROLES_DIRECTORY }}/" >> $GITHUB_STEP_SUMMARY
+            echo "├── role1/" >> $GITHUB_STEP_SUMMARY
+            echo "│   ├── molecule/" >> $GITHUB_STEP_SUMMARY
+            echo "│   │   └── default/" >> $GITHUB_STEP_SUMMARY
+            echo "│   │       ├── molecule.yml" >> $GITHUB_STEP_SUMMARY
+            echo "│   │       └── converge.yml" >> $GITHUB_STEP_SUMMARY
+            echo "│   └── tasks/" >> $GITHUB_STEP_SUMMARY
+            echo "│       └── main.yml" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
             exit 0
           fi
 
-          echo "**Total Roles Found:** $total_roles" >> $GITHUB_STEP_SUMMARY
+          echo "**Total Roles Tested:** $total_roles" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           # Check test-roles job status
           if [ "${{ needs.test-roles.result }}" == "success" ]; then
-            echo "## ✅ All Roles Test Results: SUCCESS" >> $GITHUB_STEP_SUMMARY
+            echo "## ✅ MOLECULE TEST RESULTS: SUCCESS" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "🎉 All $total_roles roles passed the tests successfully!" >> $GITHUB_STEP_SUMMARY
+            echo "🎉 **All $total_roles roles passed molecule tests successfully!**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### What was tested:" >> $GITHUB_STEP_SUMMARY
+            echo "- **Role deployment** in isolated containers" >> $GITHUB_STEP_SUMMARY
+            echo "- **Idempotency** checks" >> $GITHUB_STEP_SUMMARY
+            echo "- **Custom verification** (if configured)" >> $GITHUB_STEP_SUMMARY
           elif [ "${{ needs.test-roles.result }}" == "failure" ]; then
-            echo "## ❌ Roles Test Results: FAILURE" >> $GITHUB_STEP_SUMMARY
+            echo "## ❌ MOLECULE TEST RESULTS: FAILURE" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "💥 Some roles failed the tests. Check the individual job logs for details." >> $GITHUB_STEP_SUMMARY
+            echo "💥 **Some roles failed molecule tests.**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Check the individual job logs for detailed error information." >> $GITHUB_STEP_SUMMARY
           else
-            echo "## ⚠️ Roles Test Results: SKIPPED/CANCELLED" >> $GITHUB_STEP_SUMMARY
+            echo "## ⚠️ MOLECULE TEST RESULTS: SKIPPED/CANCELLED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Tests were skipped or cancelled." >> $GITHUB_STEP_SUMMARY
           fi
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## 🔍 Test Details" >> $GITHUB_STEP_SUMMARY
-          echo "- **YAML Lint**: Validates YAML syntax and formatting" >> $GITHUB_STEP_SUMMARY
-          echo "- **Ansible Lint**: Checks Ansible best practices" >> $GITHUB_STEP_SUMMARY
-          echo "- **Syntax Check**: Verifies playbook syntax" >> $GITHUB_STEP_SUMMARY
-          echo "- **Dry Run**: Tests role execution without making changes" >> $GITHUB_STEP_SUMMARY
 
       - name: Final Status Check
         run: |
           total_roles="${{ needs.find-roles.outputs.roles-count }}"
 
           if [ "$total_roles" -eq 0 ]; then
-            echo "⚠️ No roles to test"
+            echo "⚠️ No roles with molecule configuration found to test"
             exit 0
           fi
 
           if [ "${{ needs.test-roles.result }}" == "success" ]; then
-            echo "🎉 SUCCESS: All roles passed!"
+            echo "🎉 SUCCESS: All roles passed molecule tests!"
             exit 0
           else
-            echo "💥 FAILURE: Some roles failed!"
+            echo "💥 FAILURE: Some roles failed molecule tests!"
             exit 1
           fi
+
+  # Job untuk memberikan setup guidance jika tidak ada molecule config
+  setup-guidance:
+    needs: find-roles
+    if: needs.find-roles.outputs.roles-count == 0
+    runs-on: ubuntu-latest
+    steps:
+      - name: Provide Setup Guidance
+        run: |
+          echo "📚 Setup Guidance for Molecule Testing" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "To enable molecule testing for your roles, you need to initialize molecule in each role:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 1. Install molecule:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "pip install molecule[docker]" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 2. Initialize molecule in your role:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "cd ${{ env.ROLES_DIRECTORY }}/your-role-name" >> $GITHUB_STEP_SUMMARY
+          echo "molecule init scenario --driver-name docker" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 3. Test your role locally:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "molecule test" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
