@@ -1,99 +1,230 @@
-name: Check Roles
+name: Test Ansible Roles
 
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+env:
+  ROLES_DIRECTORY: "ansible-role/provisioning-server/roles"
+  ANSIBLE_HOST_KEY_CHECKING: "False"
+  ANSIBLE_DEPRECATION_WARNINGS: "False"
 
 jobs:
-  check-roles:
+  find-roles:
     runs-on: ubuntu-latest
-
+    outputs:
+      roles: ${{ steps.find-roles.outputs.roles }}
+      roles-count: ${{ steps.find-roles.outputs.count }}
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Python & Ansible
+      - name: Find all roles
+        id: find-roles
+        run: |
+          if [ -d "${{ env.ROLES_DIRECTORY }}" ]; then
+            roles=$(find ${{ env.ROLES_DIRECTORY }} -name "tasks" -type d | \
+                    xargs -I {} dirname {} | \
+                    xargs -I {} basename {} | \
+                    jq -R -s -c 'split("\n")[:-1]')
+            count=$(echo "$roles" | jq length)
+            echo "roles=$roles" >> $GITHUB_OUTPUT
+            echo "count=$count" >> $GITHUB_OUTPUT
+            echo "Found $count roles: $(echo "$roles" | jq -r '.[]' | tr '\n' ' ')"
+          else
+            echo "roles=[]" >> $GITHUB_OUTPUT
+            echo "count=0" >> $GITHUB_OUTPUT
+            echo "Directory ${{ env.ROLES_DIRECTORY }} not found"
+          fi
+
+  test-roles:
+    needs: find-roles
+    if: needs.find-roles.outputs.roles-count > 0
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        role: ${{ fromJson(needs.find-roles.outputs.roles) }}
+      fail-fast: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.11"
+          python-version: "3.x"
 
-      - name: Install Ansible
+      - name: Install Ansible and dependencies
         run: |
-          pip install ansible ansible-lint
+          python -m pip install --upgrade pip
+          pip install ansible ansible-lint yamllint
+          ansible --version
 
-      - name: Check roles structure
+      - name: Validate role structure
         run: |
-          cd ansible-role/provisioning-server
+          echo "=== Validating role structure for: ${{ matrix.role }} ==="
+          role_path="${{ env.ROLES_DIRECTORY }}/${{ matrix.role }}"
 
-          echo "🔍 Checking roles in provisioning-server/roles..."
-
-          if [ ! -d "roles" ]; then
-            echo "❌ ERROR: roles directory not found!"
+          if [ ! -d "$role_path" ]; then
+            echo "❌ Role directory does not exist: $role_path"
             exit 1
           fi
 
-          ROLES=$(ls -1 roles/)
-          if [ -z "$ROLES" ]; then
-            echo "❌ ERROR: No roles found!"
-            exit 1
-          fi
-
-          echo "📋 Found roles: $ROLES"
-
-          FAILED=false
-          for role in $ROLES; do
-            echo "🔸 Checking role: $role"
-            
-            if [ ! -f "roles/$role/tasks/main.yml" ]; then
-              echo "❌ ERROR: roles/$role/tasks/main.yml not found!"
-              FAILED=true
-            else
-              echo "✅ roles/$role/tasks/main.yml found"
+          required_files=("tasks/main.yml")
+          for file in "${required_files[@]}"; do
+            if [ ! -f "$role_path/$file" ]; then
+              echo "❌ Required file missing: $role_path/$file"
+              exit 1
             fi
           done
 
-          if [ "$FAILED" = true ]; then
-            echo "❌ ERROR: Role structure check failed!"
+          echo "✅ Role structure is valid"
+
+      - name: YAML Lint Check
+        run: |
+          echo "=== Running YAML Lint for role: ${{ matrix.role }} ==="
+          role_path="${{ env.ROLES_DIRECTORY }}/${{ matrix.role }}"
+
+          cat > .yamllint << EOF
+          extends: default
+          rules:
+            line-length:
+              max: 120
+            comments:
+              min-spaces-from-content: 1
+            indentation:
+              spaces: 2
+          EOF
+
+          if yamllint -c .yamllint "$role_path"; then
+            echo "✅ YAML lint passed"
+          else
+            echo "❌ YAML lint failed"
             exit 1
           fi
 
-          echo "✅ SUCCESS: All roles have valid structure"
-
-      - name: Check playbook syntax
+      - name: Ansible Lint Check
         run: |
-          cd ansible-role/provisioning-server
+          echo "=== Running Ansible Lint for role: ${{ matrix.role }} ==="
+          role_path="${{ env.ROLES_DIRECTORY }}/${{ matrix.role }}"
 
-          echo "🔍 Checking playbook syntax..."
+          cat > test_playbook.yml << EOF
+          ---
+          - hosts: localhost
+            connection: local
+            gather_facts: false
+            roles:
+              - ${{ matrix.role }}
+          EOF
 
-          # Check if site.yml exists
-          if [ ! -f "site.yml" ]; then
-            echo "⚠️ WARNING: site.yml not found, skipping syntax check"
+          if ansible-lint test_playbook.yml; then
+            echo "✅ Ansible lint passed"
+          else
+            echo "❌ Ansible lint failed"
+            exit 1
+          fi
+
+      - name: Syntax Check
+        run: |
+          echo "=== Running syntax check for role: ${{ matrix.role }} ==="
+
+          echo "localhost ansible_connection=local" > inventory
+
+          cat > test_playbook.yml << EOF
+          ---
+          - hosts: localhost
+            connection: local
+            gather_facts: false
+            roles:
+              - ${{ matrix.role }}
+          EOF
+
+          if ansible-playbook --syntax-check -i inventory test_playbook.yml; then
+            echo "✅ Syntax check passed"
+          else
+            echo "❌ Syntax check failed"
+            exit 1
+          fi
+
+      - name: Dry Run Test
+        run: |
+          echo "=== Running dry run test for role: ${{ matrix.role }} ==="
+
+          if ansible-playbook --check -i inventory test_playbook.yml -v; then
+            echo "✅ Dry run test passed"
+          else
+            echo "❌ Dry run test failed"
+            exit 1
+          fi
+
+      - name: Role Test Summary
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "🎉 Role '${{ matrix.role }}' passed all tests!"
+          else
+            echo "💥 Role '${{ matrix.role }}' failed tests!"
+          fi
+
+  test-summary:
+    needs: [find-roles, test-roles]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Test Summary
+        run: |
+          echo "# 📋 Ansible Roles Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          total_roles="${{ needs.find-roles.outputs.roles-count }}"
+
+          if [ "$total_roles" -eq 0 ]; then
+            echo "⚠️ No roles found in directory: ${{ env.ROLES_DIRECTORY }}" >> $GITHUB_STEP_SUMMARY
             exit 0
           fi
 
-          echo "localhost ansible_connection=local" > inventory.tmp
+          echo "**Total Roles Found:** $total_roles" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
 
-          if ansible-playbook --syntax-check -i inventory.tmp site.yml; then
-            echo "✅ SUCCESS: Playbook syntax is valid"
+          # Check test-roles job status
+          if [ "${{ needs.test-roles.result }}" == "success" ]; then
+            echo "## ✅ All Roles Test Results: SUCCESS" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🎉 All $total_roles roles passed the tests successfully!" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.test-roles.result }}" == "failure" ]; then
+            echo "## ❌ Roles Test Results: FAILURE" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "💥 Some roles failed the tests. Check the individual job logs for details." >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ ERROR: Playbook syntax check failed"
-            exit 1
+            echo "## ⚠️ Roles Test Results: SKIPPED/CANCELLED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Tests were skipped or cancelled." >> $GITHUB_STEP_SUMMARY
           fi
 
-          rm inventory.tmp
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🔍 Test Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **YAML Lint**: Validates YAML syntax and formatting" >> $GITHUB_STEP_SUMMARY
+          echo "- **Ansible Lint**: Checks Ansible best practices" >> $GITHUB_STEP_SUMMARY
+          echo "- **Syntax Check**: Verifies playbook syntax" >> $GITHUB_STEP_SUMMARY
+          echo "- **Dry Run**: Tests role execution without making changes" >> $GITHUB_STEP_SUMMARY
 
-      - name: Summary
-        if: always()
+      - name: Final Status Check
         run: |
-          echo "📊 FINAL RESULT:"
-          if [ "${{ job.status }}" = "success" ]; then
-            echo "🎉 SUCCESS: All checks passed!"
-            echo "✅ Role structure: OK"
-            echo "✅ Ansible-lint: OK" 
-            echo "✅ Playbook syntax: OK"
+          total_roles="${{ needs.find-roles.outputs.roles-count }}"
+
+          if [ "$total_roles" -eq 0 ]; then
+            echo "⚠️ No roles to test"
+            exit 0
+          fi
+
+          if [ "${{ needs.test-roles.result }}" == "success" ]; then
+            echo "🎉 SUCCESS: All roles passed!"
+            exit 0
           else
-            echo "❌ FAILED: One or more checks failed!"
-            echo "Check the logs above for details."
+            echo "💥 FAILURE: Some roles failed!"
+            exit 1
           fi
